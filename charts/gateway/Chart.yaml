@@ -1,0 +1,4 @@
+apiVersion: v2
+name: gateway
+description: 'The shared ALB: GatewayClass, LoadBalancerConfiguration, Gateway and the HTTP to HTTPS redirect'
+version: 0.1.0

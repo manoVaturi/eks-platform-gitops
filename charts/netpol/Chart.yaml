@@ -1,0 +1,4 @@
+apiVersion: v2
+name: netpol
+description: 'Network policies for the platform: per-database policies (databases list) and default-deny ingress with same-namespace allow (namespaces list)'
+version: 0.1.0

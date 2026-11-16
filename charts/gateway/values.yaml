@@ -1,0 +1,8 @@
+# Namespaces whose HTTPRoutes may attach to the Gateway
+allowedNamespaces:
+  - weatherapp
+  - weatherapp-dev
+
+certificateArn: arn:aws:acm:eu-west-1:<AWS_ACCOUNT_ID>:certificate/<CERT_ID>
+wafAclArn: arn:aws:wafv2:eu-west-1:<AWS_ACCOUNT_ID>:regional/webacl/weatherapp/<WEB_ACL_ID>
+sslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06

@@ -1,0 +1,4 @@
+apiVersion: v2
+name: vpa-targets
+description: 'VerticalPodAutoscaler objects in recommendation-only mode, one per workload listed in values.yaml'
+version: 0.1.0

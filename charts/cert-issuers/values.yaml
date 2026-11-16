@@ -1,0 +1,4 @@
+# The CA of the cluster. It lives in a Secret, so it is created again with the cluster every day.
+ca:
+  commonName: weatherapp-cluster-ca
+  duration: 8760h # one year (cert-manager renews before it ends)

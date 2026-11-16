@@ -1,0 +1,4 @@
+apiVersion: v2
+name: vault-secrets
+description: 'VaultStaticSecret objects: which Vault path becomes which Kubernetes Secret, in which namespace'
+version: 0.1.0

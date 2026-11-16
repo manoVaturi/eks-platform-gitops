@@ -1,0 +1,17 @@
+updater:
+  enabled: false
+
+admissionController:
+  enabled: false
+recommender:
+  extraArgs:
+    pod-recommendation-min-cpu-millicores: 10 # the chart's floor is 15
+    pod-recommendation-min-memory-mb: 32 # the chart's floor is 100: too high to tell
+
+  resources:
+    requests:
+      cpu: 25m
+      memory: 192Mi
+
+    limits:
+      memory: 384Mi

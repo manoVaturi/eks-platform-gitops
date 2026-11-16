@@ -1,0 +1,34 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: vault-data
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: vault-data
+spec:
+  capacity:
+    storage: {{ .Values.size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: vault-data
+  claimRef:
+    namespace: vault
+    name: data-vault-0
+  csi:
+    driver: ebs.csi.aws.com
+    volumeHandle: {{ required "volumeId is required: set it in platform/vault/vault-storage/values.yaml" .Values.volumeId }}
+    fsType: ext4
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: topology.kubernetes.io/zone
+              operator: In
+              values:
+                - {{ .Values.zone }}

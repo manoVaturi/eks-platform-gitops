@@ -1,0 +1,9 @@
+# Each Vault path becomes one Kubernetes Secret per namespace in the list.
+# Dev shares the production databases, so weatherapp-dev needs the same two Secrets.
+secrets:
+  - name: postgres-credentials
+    path: postgres
+    namespaces: [postgres, weatherapp, weatherapp-dev]
+  - name: mongo-credentials
+    path: mongo
+    namespaces: [mongo, weatherapp, weatherapp-dev]

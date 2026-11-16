@@ -1,0 +1,4 @@
+apiVersion: v2
+name: vault-storage
+description: The static PersistentVolume and StorageClass that bind Vault's data to the EBS volume from layer 20
+version: 0.1.0

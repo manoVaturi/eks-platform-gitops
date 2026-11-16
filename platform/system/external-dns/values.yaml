@@ -1,0 +1,19 @@
+# Chart external-dns/external-dns 1.23.0. AWS credentials come from Pod Identity.
+provider:
+  name: aws
+sources:
+  - ingress
+  - gateway-httproute
+domainFilters:
+  - manovaturi.com
+policy: sync # also deletes records it created when the HTTPRoute is removed
+registry: txt
+txtOwnerId: weatherapp # ExternalDNS only touches records carrying THIS owner marker, so Jenkins' records are safe
+serviceAccount:
+  create: true
+  name: external-dns
+extraArgs:
+  - --aws-zone-type=public
+env:
+  - name: AWS_DEFAULT_REGION
+    value: eu-west-1

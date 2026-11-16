@@ -1,0 +1,6 @@
+profile: ambient
+autoscaleEnabled: false
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi

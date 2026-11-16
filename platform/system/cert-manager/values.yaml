@@ -1,0 +1,14 @@
+crds:
+  enabled: true # the chart installs its six CRDs (the default is off)
+  keep: true # keep the CRDs if this Application is ever deleted: removing a CRD deletes every Certificate
+resources: # the controller
+  requests: { cpu: 10m, memory: 64Mi }
+  limits: { memory: 128Mi }
+webhook:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 64Mi }
+cainjector:
+  resources:
+    requests: { cpu: 10m, memory: 64Mi }
+    limits: { memory: 128Mi }

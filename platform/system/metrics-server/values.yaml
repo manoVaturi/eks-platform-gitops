@@ -1,0 +1,7 @@
+# Chart metrics-server/metrics-server 3.14.0 Serves `kubectl top`, the HPA and the VPA.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi

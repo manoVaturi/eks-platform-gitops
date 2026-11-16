@@ -1,0 +1,25 @@
+# Chart argo/argo-rollouts 2.43.8 (Argo Rollouts v1.10.1). The controller only: the dashboard stays off (chart default).
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  # the Gateway API traffic router: the Rollout edits the weights of the HTTPRoute (the RBAC comes with the chart: providerRBAC.providers.gatewayAPI)
+  trafficRouterPlugins:
+    - name: argoproj-labs/gatewayAPI
+      location: https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.17.0/gatewayapi-plugin-linux-amd64
+
+
+# The dashboard is enabled, reached only through `kubectl port-forward` (no Ingress). Turn it off after phase B.
+# dashboard:
+#   enabled: true
+#   readonly: false # true hides the promote and abort buttons: viewing only
+#   resources:
+#     requests:
+#       cpu: 10m
+#       memory: 32Mi
+#     limits:
+#       memory: 64Mi

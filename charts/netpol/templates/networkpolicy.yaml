@@ -1,0 +1,60 @@
+{{- range .Values.databases }}
+---
+# Default deny: nothing connects unless another policy allows it
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: {{ .namespace | default .name }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+# {{ .name }} accepts connections only from the {{ $.Values.app.label }} pods of the app namespaces (prod and dev), only on its port.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-{{ $.Values.app.label }}-to-{{ .name }}
+  namespace: {{ .namespace | default .name }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: {{ toJson $.Values.app.namespaces }}
+          podSelector:
+            matchLabels:
+              app: {{ $.Values.app.label }}
+        # Istio ambient: ztunnel rewrites the kubelet's health probes to come from this address.
+        # Without it a database in the mesh fails its TCP probes and is restarted.
+        - ipBlock:
+            cidr: 169.254.7.127/32
+      ports:
+        - protocol: TCP
+          port: {{ .port }}
+        - protocol: TCP
+          port: 15008
+---
+# {{ .name }} may only talk to DNS: no other outbound connections.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-dns-only
+  namespace: {{ .namespace | default .name }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .name }}
+  policyTypes:
+    - Egress
+  egress:
+    {{- include "netpol.dnsEgress" . | nindent 4 }}
+{{- end }}

@@ -1,0 +1,16 @@
+# name is also the pod label; namespace is optional and defaults to name
+databases:
+  - name: redis
+    port: 6379
+  - name: postgres
+    port: 5432
+  - name: mongo
+    port: 27017
+
+# The namespaces whose app pods may connect: prod and dev share the databases
+app:
+  namespaces: [weatherapp, weatherapp-dev]
+  label: weatherapp
+
+# Namespaces that get default-deny ingress, reachable only from their own pods (set by the platform Application)
+namespaces: []

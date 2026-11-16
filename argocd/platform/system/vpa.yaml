@@ -1,0 +1,33 @@
+# Vertical Pod Autoscaler, recommender only: it suggests CPU and memory requests (see platform/system/vpa/values.yaml).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vpa
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: '1'
+spec:
+  project: platform
+  sources:
+    - repoURL: https://charts.fairwinds.com/stable
+      chart: vpa
+      targetRevision: 5.1.0
+      helm:
+        ignoreMissingValueFiles: true
+        valueFiles:
+          - $values/platform/system/vpa/values.yaml
+    - repoURL: https://gitlab.manovaturi.com/weatherapp/weatherapp-gitops.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - SkipDryRunOnMissingResource=true

@@ -1,0 +1,7 @@
+# Each item: name (the Kubernetes Secret), path (under kv/ in Vault), namespaces (one Secret in each)
+secrets: []
+refreshAfter: 60s
+
+# true: VSO takes over a Secret that already exists and that it did not create (migration from the Secrets that up.sh
+# made by hand). Once up.sh no longer creates them (after the first full down and up), set it to false.
+overwrite: false

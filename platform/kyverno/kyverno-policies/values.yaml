@@ -1,0 +1,34 @@
+# Official kyverno-policies chart (version pinned in argocd/platform/kyverno/kyverno-policies.yaml).
+# Everything runs in Audit mode until the policy reports are clean.
+podSecurityStandard: baseline      # baseline | restricted | custom (custom = none of the Pod Security Standards)
+validationFailureAction: Audit
+
+# Our own policies, installed next to the official ones.
+customPolicies:
+  - apiVersion: policies.kyverno.io/v1
+    kind: ValidatingPolicy
+    metadata:
+      name: disallow-latest-tag
+    spec:
+      validationActions: [Audit]
+      evaluation:
+        background:
+          enabled: true
+      matchConstraints:
+        resourceRules:
+          - apiGroups: ['']
+            apiVersions: ['v1']
+            operations: ['CREATE', 'UPDATE']
+            resources: ['pods']
+        namespaceSelector:
+          matchExpressions:
+            - key: kubernetes.io/metadata.name
+              operator: NotIn
+              values: [kube-system, kyverno, argocd, istio-system]
+      validations:
+        - expression: >-
+            object.spec.containers.all(c,
+              c.image.split('/')[size(c.image.split('/')) - 1].contains(':'))
+          message: 'Every image needs a tag, for example redis:7.4.1'
+        - expression: "object.spec.containers.all(c, !c.image.endsWith(':latest'))"
+          message: 'The tag latest is not allowed: use a fixed version'

@@ -1,0 +1,2 @@
+volumeId: <VAULT_VOLUME_ID> # terraform output -raw vault_data_volume_id, in 20-persistent
+zone: eu-west-1a # must match vault_data_az and the zone of the node group

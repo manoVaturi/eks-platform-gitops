@@ -1,0 +1,39 @@
+injector:
+  enabled: false # VSO, not the sidecar injector
+
+server:
+  serviceAccount:
+    create: true
+    name: vault
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::<AWS_ACCOUNT_ID>:role/weatherapp-vault
+  dataStorage:
+    enabled: true
+    size: 2Gi
+    storageClass: vault-data
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 256Mi }
+  ha:
+    enabled: true # the chart's way to run Raft; one replica, no real HA
+    replicas: 1
+    disruptionBudget:
+      enabled: false # with one replica a budget would block node drains
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+        listener "tcp" {
+          tls_disable     = 1
+          address         = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+        storage "raft" {
+          path = "/vault/data"
+        }
+        seal "awskms" {
+          region     = "eu-west-1"
+          kms_key_id = "arn:aws:kms:eu-west-1:<AWS_ACCOUNT_ID>:key/<KMS_KEY_ID>"
+        }
+        service_registration "kubernetes" {}

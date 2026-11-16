@@ -1,0 +1,35 @@
+# 1. An issuer that signs itself. Its only job is to make the CA below.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned
+spec:
+  selfSigned: {}
+---
+# 2. The CA of the cluster: a certificate that is allowed to sign other certificates (isCA), signed by the issuer above.
+# cert-manager stores it in the Secret cluster-ca (tls.crt and tls.key).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cluster-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: {{ .Values.ca.commonName }}
+  secretName: cluster-ca
+  duration: {{ .Values.ca.duration }}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned
+    kind: ClusterIssuer
+---
+# 3. The issuer that the apps use: it signs with the CA from the Secret above.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: cluster-ca
+spec:
+  ca:
+    secretName: cluster-ca

@@ -1,0 +1,19 @@
+# VSO logs in to Vault once, as the ServiceAccount "default" of its own namespace (role "vso", policy vso-read),
+# and every VaultStaticSecret in an allowed namespace uses that login.
+defaultVaultConnection:
+  enabled: true
+  address: http://vault.vault.svc.cluster.local:8200
+
+defaultAuthMethod:
+  enabled: true
+  allowedNamespaces:
+    - postgres
+    - mongo
+    - weatherapp
+    - monitoring
+    - weatherapp-dev
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vso
+    serviceAccount: default

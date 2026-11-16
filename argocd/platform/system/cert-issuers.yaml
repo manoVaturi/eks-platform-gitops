@@ -1,0 +1,25 @@
+# The VerticalPodAutoscaler objects (recommendation only) for the workloads listed in charts/vpa-targets/values.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-issuers
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+spec:
+  project: platform
+  source:
+    repoURL: https://gitlab.manovaturi.com/weatherapp/weatherapp-gitops.git
+    targetRevision: main
+    path: charts/cert-issuers
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - SkipDryRunOnMissingResource=true

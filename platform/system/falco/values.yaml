@@ -1,0 +1,2 @@
+driver:
+  kind: modern_ebpf

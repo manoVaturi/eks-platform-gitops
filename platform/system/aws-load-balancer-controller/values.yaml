@@ -1,0 +1,12 @@
+# Chart eks/aws-load-balancer-controller 3.6.0. AWS credentials come from Pod Identity.
+clusterName: weatherapp
+region: eu-west-1
+vpcId: <VPC_ID> # explicit, so the controller does not need to query instance metadata
+replicaCount: 1 # no HA needed for this project
+serviceAccount:
+  create: true
+  name: aws-load-balancer-controller
+defaultTargetType: ip # ALB sends traffic straight to pod IPs (skips the extra NodePort hop)
+controllerConfig:
+  featureGates:
+    ALBGatewayAPI: true

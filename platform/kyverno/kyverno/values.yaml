@@ -1,0 +1,27 @@
+cleanupController:
+  enabled: false # only needed for CleanupPolicy, which we do not use
+admissionController:
+  container:
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { memory: 384Mi }
+backgroundController:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 128Mi }
+reportsController:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 128Mi }
+crds:
+  migration:
+    enabled: false # a post-upgrade job we do not need
+webhooksCleanup:
+  enabled: false # a pre-delete job; the cluster is destroyed nightly anyway
+config:
+  webhooks:
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: [kube-system, argocd, istio-system]
