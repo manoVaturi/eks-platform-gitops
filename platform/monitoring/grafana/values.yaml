@@ -1,0 +1,244 @@
+# Grafana: one pod, no disk (like the databases and Mimir, it is rebuilt from Git every day).
+admin:
+  existingSecret: grafana-admin # created by scripts/up.sh from ~/.weatherapp/grafana-password
+
+testFramework:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 768Mi
+
+# The data source is provisioned from here, so nothing is clicked together in the UI.
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Mimir
+        type: prometheus
+        uid: mimir
+        access: proxy
+        url: http://mimir.monitoring.svc:9009/prometheus
+        isDefault: true
+        jsonData:
+          timeInterval: 60s # the scrape interval of Alloy
+
+# Dashboards come from Git: the ConfigMap `grafana-dashboards` (chart charts/grafana-dashboards) is mounted
+# and loaded at start-up, so they survive every pod restart (Grafana has no disk).
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: default
+        folder: ''
+        type: file
+        disableDeletion: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+dashboardsConfigMaps:
+  default: grafana-dashboards
+
+envFromSecrets:
+  - name: grafana-slack
+    optional: true
+
+alerting:
+  contactpoints.yaml:
+    apiVersion: 1
+    contactPoints:
+      - orgId: 1
+        name: slack
+        receivers:
+          - uid: slack-weatherapp
+            type: slack
+            settings:
+              url: $SLACK_WEBHOOK_URL
+  policies.yaml:
+    apiVersion: 1
+    policies:
+      - orgId: 1
+        receiver: slack
+        group_by: [alertname, namespace]
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+  rules.yaml:
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: weatherapp
+        folder: Alerts
+        interval: 1m
+        rules:
+          - uid: app-down
+            title: App down
+            condition: C
+            for: 3m
+            noDataState: OK
+            execErrState: OK
+            labels: { severity: critical }
+            annotations:
+              summary: 'No ready weatherapp pod'
+            data:
+              - refId: A
+                relativeTimeRange: { from: 300, to: 0 }
+                datasourceUid: mimir
+                model:
+                  expr: count(up{job="weatherapp"} == 1) by (namespace)
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model: { type: reduce, expression: A, reducer: last, refId: B }
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator: { type: lt, params: [1] }
+                  refId: C
+          - uid: pod-restarted
+            title: Container restarted
+            condition: C
+            for: 0s
+            noDataState: OK
+            execErrState: OK
+            labels: { severity: warning }
+            annotations:
+              summary: 'The container of a pod restarted in the last 15 minutes'
+            data:
+              - refId: A
+                relativeTimeRange: { from: 600, to: 0 }
+                datasourceUid: mimir
+                model:
+                  expr: 'sum(increase(kube_pod_container_status_restarts_total[15m])) by (namespace, pod)'
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model: { type: reduce, expression: A, reducer: last, refId: B }
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator: { type: gt, params: [0] }
+                  refId: C
+          - uid: memory-near-limit
+            title: Memory near limit
+            condition: C
+            for: 10m
+            noDataState: OK
+            execErrState: OK
+            labels: { severity: warning }
+            annotations:
+              summary: 'A container uses more than 85 percent of its memory limit'
+            data:
+              - refId: A
+                relativeTimeRange: { from: 600, to: 0 }
+                datasourceUid: mimir
+                model:
+                  expr: 'max by (namespace, pod) (container_memory_working_set_bytes{container!="", image!=""}) / on(namespace, pod) group_left max by (namespace, pod) (kube_pod_container_resource_limits{resource="memory"})'
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model: { type: reduce, expression: A, reducer: last, refId: B }
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator: { type: gt, params: [0.85] }
+                  refId: C
+          - uid: node-memory-high
+            title: Node memory high
+            condition: C
+            for: 10m
+            noDataState: OK
+            execErrState: OK
+            labels: { severity: critical }
+            annotations:
+              summary: 'The node uses more than 85 percent of its allocatable memory'
+            data:
+              - refId: A
+                relativeTimeRange: { from: 600, to: 0 }
+                datasourceUid: mimir
+                model:
+                  expr: 'max by (node) (node_memory_working_set_bytes) / max by (node) (kube_node_status_allocatable{resource="memory"})'
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model: { type: reduce, expression: A, reducer: last, refId: B }
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator: { type: gt, params: [0.85] }
+                  refId: C
+          - uid: high-5xx-ratio
+            title: High 5xx ratio
+            condition: C
+            for: 5m
+            noDataState: OK
+            execErrState: OK
+            labels: { severity: critical }
+            annotations:
+              summary: 'More than 5 percent of the requests of the app answer with a 5xx'
+            data:
+              - refId: A
+                relativeTimeRange: { from: 600, to: 0 }
+                datasourceUid: mimir
+                model:
+                  expr: 'sum(rate(flask_http_request_total{status=~"5.."}[5m])) by (namespace) / sum(rate(flask_http_request_total[5m])) by (namespace)'
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model: { type: reduce, expression: A, reducer: last, refId: B }
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator: { type: gt, params: [0.05] }
+                  refId: C
+          - uid: pod-not-ready
+            title: Pod not ready
+            condition: C
+            for: 10m
+            noDataState: OK
+            execErrState: OK
+            labels: { severity: warning }
+            annotations:
+              summary: 'A pod has not been ready for 10 minutes'
+            data:
+              - refId: A
+                relativeTimeRange: { from: 600, to: 0 }
+                datasourceUid: mimir
+                model:
+                  expr: 'sum(kube_pod_status_ready{condition="false"}) by (namespace, pod)'
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model: { type: reduce, expression: A, reducer: last, refId: B }
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  expression: B
+                  conditions:
+                    - evaluator: { type: gt, params: [0] }
+                  refId: C

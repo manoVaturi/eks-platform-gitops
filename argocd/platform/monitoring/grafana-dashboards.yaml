@@ -1,0 +1,24 @@
+# Dashboards as code: one ConfigMap built from charts/grafana-dashboards/dashboards/*.json. Wave 3: before Grafana mounts it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-dashboards
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: '3' # before Grafana (wave 4): the pod mounts this ConfigMap
+spec:
+  project: platform
+  source:
+    repoURL: https://gitlab.manovaturi.com/weatherapp/weatherapp-gitops.git
+    targetRevision: main
+    path: charts/grafana-dashboards
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: [CreateNamespace=true]

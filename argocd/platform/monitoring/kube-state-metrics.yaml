@@ -1,0 +1,38 @@
+# kube-state-metrics: pod and node state as metrics. Wave 5: after Alloy, which scrapes it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-state-metrics
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: '5'
+spec:
+  project: platform
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-state-metrics
+      targetRevision: 8.7.1
+      helm:
+        valueFiles:
+          - $values/platform/monitoring/kube-state-metrics/values.yaml
+    - repoURL: https://gitlab.manovaturi.com/weatherapp/weatherapp-gitops.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/template/spec/hostNetwork
+        - /spec/template/spec/securityContext/readOnlyRootFilesystem
+        - /spec/template/spec/containers/0/securityContext/readOnlyRootFilesystem

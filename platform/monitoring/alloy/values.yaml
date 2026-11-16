@@ -1,0 +1,209 @@
+# One pod is enough: Alloy finds targets through the Kubernetes API, it does not need to run on every node.
+controller:
+  type: deployment
+  replicas: 1
+
+alloy:
+  enableReporting: false # no usage statistics sent to Grafana
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  configMap:
+    content: |
+      // =====================================================================
+      // 1. OUTPUT: where every sample goes
+      // =====================================================================
+      prometheus.remote_write "mimir" {
+        // the Kubernetes dashboards filter on cluster="..."
+        external_labels = {
+          cluster = "weatherapp",
+        }
+        endpoint {
+          url = "http://mimir.monitoring.svc:9009/api/v1/push"
+        }
+      }
+
+      // =====================================================================
+      // 2. ALLOY ITSELF
+      // =====================================================================
+
+      prometheus.exporter.self "alloy" {}
+      prometheus.scrape "alloy" {
+        targets    = prometheus.exporter.self.alloy.targets
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+       // =====================================================================
+      // 3. KUBELET AND cADVISOR (CPU, memory and network of every container)
+      // =====================================================================
+
+      // Find the nodes: Alloy asks the API for them and scrapes each kubelet
+      discovery.kubernetes "nodes" {
+        role = "node"
+      }
+
+      // Add a readable node label
+      discovery.relabel "kubelet" {
+        targets = discovery.kubernetes.nodes.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_node_name"]
+          target_label  = "node"
+        }
+      }
+
+      // Scrape cAdvisor over HTTPS with Alloy's own ServiceAccount token
+      prometheus.scrape "cadvisor" {
+        targets      = discovery.relabel.kubelet.output
+        forward_to   = [prometheus.relabel.cadvisor.receiver]
+        job_name     = "cadvisor"
+        metrics_path = "/metrics/cadvisor"
+        scheme       = "https"
+
+        authorization {
+          type             = "Bearer"
+          credentials_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        }
+
+        tls_config {
+          insecure_skip_verify = true
+        }
+      }
+
+      // Scrape the kubelet's resource endpoint: node-level CPU and memory
+        prometheus.scrape "kubelet_resource" {
+        targets      = discovery.relabel.kubelet.output
+        forward_to   = [prometheus.remote_write.mimir.receiver]
+        job_name     = "kubelet-resource"
+        metrics_path = "/metrics/resource"
+        scheme       = "https"
+
+        authorization {
+          type             = "Bearer"
+          credentials_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        }
+
+        tls_config {
+          insecure_skip_verify = true
+        }
+      }
+
+      prometheus.relabel "cadvisor" {
+        forward_to = [prometheus.remote_write.mimir.receiver]
+
+        rule {
+          source_labels = ["__name__"]
+          regex = "up|container_cpu_usage_seconds_total|container_cpu_cfs_periods_total|container_cpu_cfs_throttled_periods_total|container_cpu_cfs_throttled_seconds_total|container_memory_working_set_bytes|container_memory_rss|container_network_receive_bytes_total|container_network_transmit_bytes_total|container_network_receive_packets_total|container_network_transmit_packets_total|container_network_receive_packets_dropped_total|container_network_transmit_packets_dropped_total|container_network_receive_errors_total|container_network_transmit_errors_total|machine_cpu_cores|machine_memory_bytes"
+          action        = "keep"
+        }
+      }
+      // =====================================================================
+      // 4. KUBE-STATE-METRICS (Pod states, deployments, requests and limits)
+      // =====================================================================
+
+      // Find services across the cluster
+      discovery.kubernetes "services" {
+        role = "service"
+      }
+
+      // Filter and target the kube-state-metrics service
+      discovery.relabel "kube_state_metrics" {
+        targets = discovery.kubernetes.services.targets
+
+        // Keep only the kube-state-metrics service
+        rule {
+          source_labels = ["__meta_kubernetes_service_name"]
+          regex         = ".*kube-state-metrics.*"
+          action        = "keep"
+        }
+
+        // Keep only the metrics HTTP port (usually named "http" or port 8080)
+        rule {
+          source_labels = ["__meta_kubernetes_service_port_name"]
+          regex         = "http.*"
+          action        = "keep"
+        }
+
+        // Set job="kube-state-metrics" required by community Grafana dashboards
+        rule {
+          target_label = "job"
+          replacement  = "kube-state-metrics"
+        }
+
+        // Add the namespace label
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
+      // Scrape kube-state-metrics over plain HTTP
+      prometheus.scrape "kube_state_metrics" {
+        targets         = discovery.relabel.kube_state_metrics.output
+        forward_to      = [prometheus.remote_write.mimir.receiver]
+        job_name        = "kube-state-metrics"
+        scrape_interval = "30s"
+        honor_labels    = true
+      }
+
+      // =====================================================================
+      // 4. WEATHER APP (prod and dev)
+      // =====================================================================
+
+      // Find the pods
+      discovery.kubernetes "pods" {
+        role = "pod"
+        namespaces {
+          names = ["weatherapp", "weatherapp-dev"]
+        }
+      }
+
+      // Keep only ready app pods on port 8000, and add readable labels
+      discovery.relabel "weatherapp" {
+        targets = discovery.kubernetes.pods.targets
+
+        // Keep only pods labeled app=weatherapp
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          regex         = "weatherapp"
+          action        = "keep"
+        }
+
+        // Keep only port 8000
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_port_number"]
+          regex         = "8000"
+          action        = "keep"
+        }
+
+        // Best Practice: Scrape only pods that are actively Ready
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ready"]
+          regex         = "true"
+          action        = "keep"
+        }
+
+        // Map namespace
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        // Map pod name
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+      }
+
+      // Scrape /metrics and send to Mimir
+      prometheus.scrape "weatherapp" {
+        targets         = discovery.relabel.weatherapp.output
+        forward_to      = [prometheus.remote_write.mimir.receiver]
+        job_name        = "weatherapp"
+        metrics_path    = "/metrics"
+        scrape_interval = "15s"
+      }

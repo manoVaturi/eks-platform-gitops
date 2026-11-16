@@ -1,0 +1,97 @@
+image:
+  repository: grafana/mimir
+  tag: 3.2.3
+  pullPolicy: IfNotPresent
+
+# Which Mimir modules run inside the pod. This becomes -target=a,b,c (the default [all] is -target=all).
+# (A) = part of "all". A list replaces this one completely, so name every module you want.
+# The list comes from: docker run --rm grafana/mimir:<tag> -modules
+#   distributor       receives pushed metrics (A)
+#   ingester          holds recent data and writes blocks (A)
+#   querier           answers PromQL queries (A)
+#   query-frontend    splits and caches queries (A)
+#   query-scheduler   queue between query-frontend and querier (A)
+#   store-gateway     reads old blocks from storage (A)
+#   compactor         merges blocks, applies the retention (A)
+#   ruler             evaluates recording and alerting rules (A)
+#   alertmanager      sends the alerts the ruler fires (not in "all"; Grafana will do the alerting)
+#   overrides-exporter  exports the per-tenant limits as metrics (not in "all")
+#   continuous-test   writes and reads test data to check Mimir itself (not in "all")
+modules:
+  - all
+
+# Extra command-line flags, only for what the config file can not say. A flag wins over the same setting in config.
+# -log.format=json            (logfmt, json)
+# -config.expand-env=true     lets the config use ${VAR} from environment variables
+# -log.level is already set in config.server.log_level (debug, info, warn, error)
+extraArgs: []
+
+config:
+  multitenancy_enabled: false
+  server:
+    http_listen_port: 9009 # the container port and the Service port follow this value
+    grpc_listen_port: 9095
+    log_level: warn
+
+  blocks_storage:
+    backend: filesystem
+    bucket_store:
+      sync_dir: /data/tsdb-sync
+    filesystem:
+      dir: /data/blocks
+    tsdb:
+      dir: /data/tsdb
+  compactor: # merges blocks, applies the retention
+    data_dir: /data/compactor
+    sharding_ring:
+      kvstore:
+        store: memberlist
+  distributor: # receives pushed metrics
+    ring:
+      instance_addr: 127.0.0.1
+      kvstore:
+        store: memberlist
+  ingester: # holds recent data and writes blocks
+    ring:
+      instance_addr: 127.0.0.1
+      kvstore:
+        store: memberlist
+      replication_factor: 1
+  ruler_storage: # evaluates recording and alerting rules
+    backend: filesystem
+    filesystem:
+      dir: /data/rules
+  store_gateway:
+    sharding_ring:
+      replication_factor: 1
+  limits:
+    compactor_blocks_retention_period: 24h # how long a metric block is kept; the data is disposable anyway
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 192Mi
+  limits:
+    memory: 512Mi
+
+# Disposable storage: an emptyDir, gone when the pod restarts (on purpose, like the databases).
+data:
+  sizeLimit: 2Gi
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]

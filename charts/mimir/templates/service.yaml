@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mimir.fullname" . }}
+  labels:
+    {{- include "mimir.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "mimir.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ include "mimir.httpPort" . }}
+      targetPort: http

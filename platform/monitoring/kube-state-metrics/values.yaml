@@ -1,0 +1,22 @@
+# platform/monitoring/kube-state-metrics/values.yaml
+
+# אנוטציות על ה-Service כדי שרכיב ה-discovery ב-Alloy יזהה אותו מיד
+service:
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '8080'
+
+# הקצאת משאבים מינימלית ויציבה
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+# תאימות לאבטחה בסיסית
+securityContext:
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65534

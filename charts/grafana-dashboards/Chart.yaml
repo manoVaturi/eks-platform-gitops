@@ -1,0 +1,4 @@
+apiVersion: v2
+name: grafana-dashboards
+description: Grafana dashboards as code, one ConfigMap built from dashboards/*.json
+version: 0.1.0

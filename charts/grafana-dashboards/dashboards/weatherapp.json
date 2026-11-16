@@ -1,0 +1,720 @@
+{
+    "uid": "weatherapp-overview",
+    "title": "WeatherApp / Overview",
+    "tags": [
+        "weatherapp"
+    ],
+    "description": "Traffic, errors, latency, cache and pod health of the Flask app (prod and dev).",
+    "editable": true,
+    "graphTooltip": 1,
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "annotations": {
+        "list": []
+    },
+    "links": [],
+    "panels": [
+        {
+            "id": 1,
+            "type": "timeseries",
+            "title": "Request rate by status",
+            "description": "Requests per second, split by HTTP status. /healthz probes are included.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 12,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(rate(flask_http_request_total{namespace=\"$namespace\"}[5m])) by (status)",
+                    "legendFormat": "{{status}}",
+                    "refId": "A",
+                    "range": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps"
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true,
+                    "calcs": [
+                        "mean",
+                        "max"
+                    ]
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            }
+        },
+        {
+            "id": 2,
+            "type": "stat",
+            "title": "Error ratio (5xx)",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "gridPos": {
+                "x": 12,
+                "y": 0,
+                "w": 4,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "(sum(rate(flask_http_request_total{namespace=\"$namespace\",status=~\"5..\"}[5m])) or vector(0)) / sum(rate(flask_http_request_total{namespace=\"$namespace\"}[5m]))",
+                    "legendFormat": "5xx",
+                    "refId": "A",
+                    "range": false,
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "min": 0,
+                    "max": 1,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 0.01
+                            },
+                            {
+                                "color": "red",
+                                "value": 0.05
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            }
+        },
+        {
+            "id": 3,
+            "type": "stat",
+            "title": "Latency p95",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "gridPos": {
+                "x": 16,
+                "y": 0,
+                "w": 4,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "histogram_quantile(0.95, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"$namespace\"}[5m])) by (le))",
+                    "legendFormat": "p95",
+                    "refId": "A",
+                    "range": false,
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 3
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            }
+        },
+        {
+            "id": 4,
+            "type": "gauge",
+            "title": "Cache hit ratio",
+            "description": "Over the selected time range.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "gridPos": {
+                "x": 20,
+                "y": 0,
+                "w": 4,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(increase(weather_cache_hits_total{namespace=\"$namespace\"}[$__range])) / (sum(increase(weather_cache_hits_total{namespace=\"$namespace\"}[$__range])) + sum(increase(weather_cache_misses_total{namespace=\"$namespace\"}[$__range])))",
+                    "legendFormat": "hit ratio",
+                    "refId": "A",
+                    "range": false,
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "min": 0,
+                    "max": 1,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 0.3
+                            },
+                            {
+                                "color": "green",
+                                "value": 0.6
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdMarkers": true
+            }
+        },
+        {
+            "id": 5,
+            "type": "timeseries",
+            "title": "Latency p50 / p95 / p99",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "gridPos": {
+                "x": 0,
+                "y": 8,
+                "w": 12,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "histogram_quantile(0.5, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"$namespace\"}[5m])) by (le))",
+                    "legendFormat": "p50",
+                    "refId": "A",
+                    "range": true
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "histogram_quantile(0.95, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"$namespace\"}[5m])) by (le))",
+                    "legendFormat": "p95",
+                    "refId": "B",
+                    "range": true
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "histogram_quantile(0.99, sum(rate(flask_http_request_duration_seconds_bucket{namespace=\"$namespace\"}[5m])) by (le))",
+                    "legendFormat": "p99",
+                    "refId": "C",
+                    "range": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s"
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true,
+                    "calcs": [
+                        "mean",
+                        "max"
+                    ]
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            }
+        },
+        {
+            "id": 6,
+            "type": "timeseries",
+            "title": "Requests by path",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "gridPos": {
+                "x": 12,
+                "y": 8,
+                "w": 12,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(rate(flask_http_request_total{namespace=\"$namespace\"}[5m])) by (path)",
+                    "legendFormat": "{{path}}",
+                    "refId": "A",
+                    "range": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps"
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true,
+                    "calcs": [
+                        "mean",
+                        "max"
+                    ]
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            }
+        },
+        {
+            "id": 7,
+            "type": "bargauge",
+            "title": "Top cities (since pods started)",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "gridPos": {
+                "x": 0,
+                "y": 16,
+                "w": 12,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "topk(10, sum(weather_city_lookups_total{namespace=\"$namespace\"}) by (city))",
+                    "legendFormat": "{{city}}",
+                    "refId": "A",
+                    "range": false,
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "orientation": "horizontal",
+                "displayMode": "gradient"
+            }
+        },
+        {
+            "id": 8,
+            "type": "timeseries",
+            "title": "Cache hits vs misses",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "gridPos": {
+                "x": 12,
+                "y": 16,
+                "w": 12,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(rate(weather_cache_hits_total{namespace=\"$namespace\"}[5m]))",
+                    "legendFormat": "hits",
+                    "refId": "A",
+                    "range": true
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(rate(weather_cache_misses_total{namespace=\"$namespace\"}[5m]))",
+                    "legendFormat": "misses (Open-Meteo calls)",
+                    "refId": "B",
+                    "range": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ops"
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true,
+                    "calcs": [
+                        "mean",
+                        "max"
+                    ]
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            }
+        },
+        {
+            "id": 9,
+            "type": "timeseries",
+            "title": "Pod memory vs limit",
+            "description": "The app container is named app (see charts/weatherapp/templates/deployment.yaml).",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "gridPos": {
+                "x": 0,
+                "y": 24,
+                "w": 12,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(container_memory_working_set_bytes{namespace=\"$namespace\",container=\"app\",image!=\"\",cluster=\"weatherapp\"}) by (pod)",
+                    "legendFormat": "{{pod}} used",
+                    "refId": "A",
+                    "range": true
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "max(kube_pod_container_resource_limits{namespace=\"$namespace\",container=\"app\",resource=\"memory\"})",
+                    "legendFormat": "limit",
+                    "refId": "B",
+                    "range": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bytes"
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true,
+                    "calcs": [
+                        "mean",
+                        "max"
+                    ]
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            }
+        },
+        {
+            "id": 10,
+            "type": "stat",
+            "title": "Container restarts",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "gridPos": {
+                "x": 12,
+                "y": 24,
+                "w": 6,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(kube_pod_container_status_restarts_total{namespace=\"$namespace\"})",
+                    "legendFormat": "restarts",
+                    "refId": "A",
+                    "range": false,
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 5
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            }
+        },
+        {
+            "id": 11,
+            "type": "stat",
+            "title": "Pods up",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "gridPos": {
+                "x": 18,
+                "y": 24,
+                "w": 6,
+                "h": 8
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "count(up{job=\"weatherapp\",namespace=\"$namespace\"} == 1)",
+                    "legendFormat": "up",
+                    "refId": "A",
+                    "range": false,
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "none",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto"
+            }
+        }
+    ],
+    "templating": {
+        "list": [
+            {
+                "name": "datasource",
+                "label": "Data source",
+                "type": "datasource",
+                "query": "prometheus",
+                "current": {},
+                "hide": 0,
+                "refresh": 1
+            },
+            {
+                "name": "namespace",
+                "label": "Environment (namespace)",
+                "type": "query",
+                "datasource": {
+                    "type": "prometheus",
+                    "uid": "${datasource}"
+                },
+                "query": {
+                    "query": "label_values(flask_http_request_total, namespace)",
+                    "refId": "ns"
+                },
+                "definition": "label_values(flask_http_request_total, namespace)",
+                "refresh": 2,
+                "sort": 1,
+                "current": {},
+                "multi": false,
+                "includeAll": false
+            }
+        ]
+    }
+}

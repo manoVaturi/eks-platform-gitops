@@ -1,0 +1,5 @@
+apiVersion: v2
+name: mimir
+description: Grafana Mimir in single-process mode (-target=all), disposable storage
+version: 0.1.0
+appVersion: 3.2.3

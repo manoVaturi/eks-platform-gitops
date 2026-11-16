@@ -1,0 +1,6 @@
+modules:
+  - all
+
+config:
+  limits:
+    compactor_blocks_retention_period: 24h

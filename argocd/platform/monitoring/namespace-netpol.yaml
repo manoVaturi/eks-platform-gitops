@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: namespace-netpol
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: '6'
+spec:
+  project: platform
+  source:
+    repoURL: https://gitlab.manovaturi.com/weatherapp/weatherapp-gitops.git
+    targetRevision: main
+    path: charts/netpol
+    helm:
+      valueFiles:
+        - ../../platform/monitoring/namespace-netpol/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
