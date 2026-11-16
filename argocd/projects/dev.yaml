@@ -1,0 +1,23 @@
+# AppProject dev: what the dev app may deploy and where.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '-10'
+spec:
+  description: 'Dev: the same pieces in the -dev namespaces'
+  sourceRepos:
+    - https://gitlab.manovaturi.com/weatherapp/weatherapp-gitops.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: '*-dev'
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  orphanedResources:
+    warn: true
+    ignore:
+      - kind: ConfigMap
+        name: istio-ca-*

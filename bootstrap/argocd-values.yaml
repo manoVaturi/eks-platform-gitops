@@ -1,0 +1,14 @@
+# Values of the Argo CD install (helm upgrade --install argocd argo/argo-cd, chart 10.10.5). Argo CD does not manage itself:
+# this file is used by hand in step 5.7 of the manual (and by scripts/up.sh).
+# The admin password hash is NOT here: it comes from ~/.weatherapp/argocd-password-hash.
+
+dex:
+  enabled: false # single sign-on is not used
+notifications:
+  enabled: false # Slack alerts come from Grafana
+
+controller:
+  # The biggest memory user of the one node (it peaked at 1.07 GiB with no limit): give it a ceiling so a runaway cannot starve Vault and the app.
+  resources:
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { memory: 1536Mi }

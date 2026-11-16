@@ -1,0 +1,32 @@
+# AppProject prod: what the production app and the databases may deploy and where.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: prod
+  namespace: argocd
+  annotations:
+    # Created before the Applications that name it.
+    argocd.argoproj.io/sync-wave: '-10'
+spec:
+  description: 'Production: the app and its databases'
+  sourceRepos:
+    - https://gitlab.manovaturi.com/weatherapp/weatherapp-gitops.git
+  destinations:
+    - namespace: weatherapp
+      server: https://kubernetes.default.svc
+    - namespace: redis
+      server: https://kubernetes.default.svc
+    - namespace: postgres
+      server: https://kubernetes.default.svc
+    - namespace: mongo
+      server: https://kubernetes.default.svc
+    - namespace: default
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  orphanedResources:
+    warn: true
+    ignore:
+      - kind: ConfigMap
+        name: istio-ca-*

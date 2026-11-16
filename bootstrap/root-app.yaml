@@ -1,0 +1,32 @@
+# App of Apps - applied manually once: kubectl apply -n argocd -f bootstrap/root-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://gitlab.manovaturi.com/weatherapp/weatherapp-gitops.git
+    targetRevision: main
+    path: argocd
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  # Argo CD adds pre-delete finalizers to an Application whose chart has a PreDelete hook (vault-secrets-operator):
+  # without this, root strips them and Argo CD adds them back, so root is always OutOfSync
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      jsonPointers:
+        - /metadata/finalizers
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - RespectIgnoreDifferences=true
