@@ -1,0 +1,6 @@
+name: mongo
+app: mongo
+env: prod
+namespace: mongo
+chart: database
+mesh: ambient   # Istio ambient: "ambient" enrols the namespace in the mesh, "none" leaves it out

@@ -1,0 +1,27 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: gateway.k8s.aws/v1
+kind: TargetGroupConfiguration
+metadata:
+  name: {{ .Chart.Name }}
+spec:
+  targetReference:
+    name: {{ .Chart.Name }}
+  defaultConfiguration:
+    targetType: ip
+    healthCheckConfig:
+      healthCheckPath: /healthz
+{{- if .Values.rollout.enabled }}
+---
+apiVersion: gateway.k8s.aws/v1
+kind: TargetGroupConfiguration
+metadata:
+  name: {{ .Chart.Name }}-canary
+spec:
+  targetReference:
+    name: {{ .Chart.Name }}-canary
+  defaultConfiguration:
+    targetType: ip
+    healthCheckConfig:
+      healthCheckPath: /healthz
+{{- end }}
+{{- end }}

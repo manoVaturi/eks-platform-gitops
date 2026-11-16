@@ -1,0 +1,9 @@
+# Dev values. Jenkins rewrites the tag line on every build of main.
+image:
+  tag: "d4c6804"
+
+gateway:
+  enabled: true
+  host: weather-dev.manovaturi.com
+
+# No canary on dev: a plain Deployment (rollout.enabled is false by default). Canary releases run on prod only.

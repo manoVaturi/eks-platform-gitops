@@ -1,0 +1,6 @@
+name: postgres
+app: postgres
+env: prod
+namespace: postgres
+chart: database
+mesh: ambient   # Istio ambient: "ambient" enrols the namespace in the mesh, "none" leaves it out

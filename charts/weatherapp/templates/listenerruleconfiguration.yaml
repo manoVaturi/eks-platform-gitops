@@ -1,0 +1,13 @@
+{{- if and .Values.gateway.enabled .Values.gateway.hideMetrics }}
+apiVersion: gateway.k8s.aws/v1
+kind: ListenerRuleConfiguration
+metadata:
+  name: {{ .Chart.Name }}-metrics-not-found
+spec:
+  actions:
+    - type: fixed-response
+      fixedResponseConfig:
+        statusCode: 404
+        contentType: text/plain
+        messageBody: not found
+{{- end }}

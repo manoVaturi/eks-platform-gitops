@@ -1,0 +1,100 @@
+apiVersion: {{ if .Values.rollout.enabled }}argoproj.io/v1alpha1{{ else }}apps/v1{{ end }}
+kind: {{ if .Values.rollout.enabled }}Rollout{{ else }}Deployment{{ end }}
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  {{- if not .Values.hpa.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  {{- if .Values.rollout.enabled }}
+  strategy:
+    canary:
+      {{- toYaml .Values.rollout.canary | nindent 6 }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      serviceAccountName: {{ .Chart.Name }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ required "image.tag is required" .Values.image.tag }}"
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: APP_VERSION
+              value: {{ .Values.image.tag | quote }}
+            {{- if .Values.redis.enabled }}
+            - name: REDIS_HOST
+              value: {{ .Values.redis.host | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.redis.port | quote }}
+            - name: CACHE_TTL_SECONDS
+              value: {{ .Values.redis.ttlSeconds | quote }}
+            {{- end }}
+            {{- if .Values.postgres.enabled }}
+            - name: DB_HOST
+              value: {{ .Values.postgres.host | quote }}
+            - name: DB_NAME
+              value: {{ .Values.postgres.name | quote }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.credentialsSecret }}
+                  key: username
+                  optional: true
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.credentialsSecret }}
+                  key: password
+                  optional: true
+            {{- end }}
+            {{- if .Values.mongo.enabled }}
+            - name: MONGO_HOST
+              value: {{ .Values.mongo.host | quote }}
+            - name: MONGO_PORT
+              value: {{ .Values.mongo.port | quote }}
+            - name: MONGO_DB
+              value: {{ .Values.mongo.name | quote }}
+            - name: SNAPSHOT_TTL_SECONDS
+              value: {{ .Values.mongo.ttlSeconds | quote }}
+            - name: MONGO_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongo.credentialsSecret }}
+                  key: username
+                  optional: true
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongo.credentialsSecret }}
+                  key: password
+                  optional: true
+            {{- end }}
+          # Readiness: only receive traffic when healthy. Liveness: restart if wedged.
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }

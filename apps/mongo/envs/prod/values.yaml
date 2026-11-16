@@ -1,0 +1,34 @@
+name: mongo
+kind: StatefulSet
+headless: true
+replicas: 1
+port: 27017
+image: mongo:8.0.34
+args: ['mongod', '--bind_ip_all', '--wiredTigerCacheSizeGB', '0.25']
+podSecurityContext:
+  runAsUser: 999
+  runAsGroup: 999
+  fsGroup: 999
+env:
+  - name: MONGO_INITDB_ROOT_USERNAME
+    valueFrom:
+      secretKeyRef: { name: mongo-credentials, key: username }
+  - name: MONGO_INITDB_ROOT_PASSWORD
+    valueFrom:
+      secretKeyRef: { name: mongo-credentials, key: password }
+readinessProbe:
+  tcpSocket: { port: mongo }
+  periodSeconds: 10
+livenessProbe:
+  tcpSocket: { port: mongo }
+  initialDelaySeconds: 30
+  periodSeconds: 20
+resources:
+  requests: { cpu: 50m, memory: 480Mi }
+  limits: { memory: 768Mi }
+volumeMounts:
+  - name: data
+    mountPath: /data/db
+volumes:
+  - name: data
+    emptyDir: {}

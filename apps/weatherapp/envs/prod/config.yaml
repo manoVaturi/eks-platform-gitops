@@ -1,0 +1,6 @@
+name: weatherapp-prod
+app: weatherapp
+env: prod
+namespace: weatherapp
+chart: weatherapp
+mesh: ambient   # Istio ambient: "ambient" enrols the namespace in the mesh, "none" leaves it out

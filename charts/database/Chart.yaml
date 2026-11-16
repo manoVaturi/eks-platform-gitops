@@ -1,0 +1,4 @@
+apiVersion: v2
+name: database
+description: One small database (Redis, Postgres, Mongo) as a Service, a ServiceAccount and a Deployment or StatefulSet
+version: 0.1.0

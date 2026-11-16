@@ -1,0 +1,70 @@
+image:
+  repository: <AWS_ACCOUNT_ID>.dkr.ecr.eu-west-1.amazonaws.com/weatherapp
+  tag: ''
+
+replicaCount: 1
+
+resources:
+  requests: { cpu: 50m, memory: 96Mi }
+  limits: { memory: 256Mi }
+
+gateway:
+  enabled: true
+  name: weatherapp
+  host: ''
+  namespace: gateway-system
+
+  # true: the ALB answers 404 to /metrics from the internet (Alloy scrapes the pod directly, not through the ALB)
+  hideMetrics: true
+
+redis:
+  enabled: true
+  host: redis.redis.svc.cluster.local
+  port: 6379
+  ttlSeconds: 600
+
+postgres:
+  enabled: true
+  host: postgres.postgres.svc.cluster.local
+  name: weatherapp
+  credentialsSecret: postgres-credentials
+
+mongo:
+  enabled: true
+  host: mongo.mongo.svc.cluster.local
+  port: 27017
+  name: weatherapp
+  credentialsSecret: mongo-credentials
+  # Snapshots older than this are deleted by Mongo itself (the TTL index).
+  ttlSeconds: 86400
+
+networkPolicy:
+  # Databases the app may reach, one egress rule each (namespace defaults to name)
+  databases:
+    - name: redis
+      port: 6379
+    - name: postgres
+      port: 5432
+    - name: mongo
+      port: 27017
+
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 70
+
+rollout:
+  enabled: false # true: a Rollout (canary) replaces the Deployment
+  canary: # copied as it is into strategy.canary of the Rollout
+    stableService: weatherapp # the Service the ALB sends the old version to (the chart name)
+    canaryService: weatherapp-canary # the Service for the new version (service-canary.yaml)
+    trafficRouting:
+      plugins:
+        argoproj-labs/gatewayAPI:
+          httpRoute: weatherapp # the HTTPRoute name
+    steps: # the release plan, in order; after the last pause the new version gets 100% by itself (no manual promote)
+      - setWeight: 10 # 10% of the REQUESTS reach the new version, whatever the number of pods
+      - pause: { duration: 5m } # watch the 5xx and the logs of the canary; `kubectl argo rollouts abort` stops the release
+      - setWeight: 50
+      - pause: { duration: 5m }

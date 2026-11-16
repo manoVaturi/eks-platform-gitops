@@ -1,0 +1,16 @@
+{{- if .Values.rollout.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}-canary
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  type: ClusterIP # internal only; the Gateway (HTTPRoute) reaches pods through it
+  selector:
+    app: {{ .Chart.Name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- end }}

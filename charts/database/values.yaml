@@ -1,0 +1,22 @@
+# Generic single-instance database. Each database sets only what differs, in apps/<name>/envs/<env>/values.yaml.
+name: ""            # also the app= label, the Service and the ServiceAccount name
+kind: Deployment    # Deployment, or StatefulSet (then the Service is the governing Service)
+headless: false     # true: Service with clusterIP None (the StatefulSets)
+replicas:           # left out of the manifest when empty
+port: 0             # container port, also the Service port; the port is named after the database
+image: ""
+args: []
+env: []
+readinessProbe: {}
+livenessProbe: {}
+resources: {}
+volumes: []
+volumeMounts: []
+
+# Defaults for every database. A database adds to these maps (runAsUser, fsGroup ...), it does not replace them.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile: { type: RuntimeDefault }
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities: { drop: ["ALL"] }

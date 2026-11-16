@@ -1,0 +1,17 @@
+name: redis
+kind: Deployment
+port: 6379
+image: redis:8.2.0-alpine
+args: ["--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+podSecurityContext:
+  runAsUser: 999
+readinessProbe:
+  tcpSocket: { port: redis }
+  periodSeconds: 10
+livenessProbe:
+  tcpSocket: { port: redis }
+  initialDelaySeconds: 10
+  periodSeconds: 20
+resources:
+  requests: { cpu: 25m, memory: 32Mi }
+  limits: { memory: 96Mi }

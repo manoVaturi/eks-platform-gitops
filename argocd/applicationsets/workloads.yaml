@@ -1,0 +1,65 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: workloads
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '-4'
+spec:
+  goTemplate: true
+  goTemplateOptions: ['missingkey=error']
+  generators:
+    - git:
+        repoURL: https://gitlab.manovaturi.com/weatherapp/weatherapp-gitops.git
+        revision: main
+        files:
+          - path: apps/*/envs/*/config.yaml
+  template:
+    metadata:
+      name: '{{ .name }}'
+      labels:
+        app.kubernetes.io/part-of: workloads
+        env: '{{ .env }}'
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: '{{ .env }}'
+      source:
+        repoURL: https://gitlab.manovaturi.com/weatherapp/weatherapp-gitops.git
+        targetRevision: main
+        path: 'charts/{{ .chart }}'
+        helm:
+          ignoreMissingValueFiles: true
+          valueFiles:
+            - '../../apps/{{ .app }}/envs/{{ .env }}/values.yaml'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - RespectIgnoreDifferences=true
+        managedNamespaceMetadata:
+          labels:
+            istio.io/dataplane-mode: '{{ .mesh }}'
+        retry:
+          limit: 5
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 5m
+      ignoreDifferences:
+        - group: ''
+          kind: Service
+          jsonPointers:
+            - /spec/selector
+        - group: gateway.networking.k8s.io
+          kind: HTTPRoute
+          managedFieldsManagers:
+            - gatewayAPI
+          jqPathExpressions:
+            - .spec.rules[].backendRefs[].weight
+            - .metadata.labels."rollouts.argoproj.io/gatewayapi-canary"
